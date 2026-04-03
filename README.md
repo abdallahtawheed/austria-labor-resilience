@@ -2,7 +2,7 @@
 
 ## Research Question
 Do Austrian regions with older average populations recover more slowly from 
-labor market shocks — and does sector composition (healthcare-heavy vs 
+labor market shocks, and does sector composition (healthcare-heavy vs 
 manufacturing-heavy) change that recovery pattern?
 
 ## What This Project Does
@@ -11,10 +11,10 @@ demographic data, transforms and validates it, runs a forecasting model, and
 serves findings via an interactive dashboard.
 
 ## Key Finding
-*[To be filled in after analysis]*
+*To be filled in after analysis*
 
 ## Pipeline Architecture
-*[Insert architecture diagram here]*
+*Insert architecture diagram here*
 
 ## Project Structure
 
@@ -40,7 +40,7 @@ austria-labor-resilience/
 - **Storage:** PostgreSQL (Docker)
 - **Transformation:** Python, pandas, SQL
 - **Modeling:** Prophet
-- **Visualization:** *[Power BI or Plotly Dash — decide later]*
+- **Visualization:** *Power BI or Plotly Dash — decide later*
 - **Testing:** pytest, Great Expectations
 - **CI/CD:** GitHub Actions
 
