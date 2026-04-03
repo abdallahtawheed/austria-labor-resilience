@@ -1,0 +1,31 @@
+# Virtual environment
+venv/
+.venv/
+
+# uv cache
+.uv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment variables (sensitive credentials)
+.env
+*.env
+
+# Data files (too large for git, source is Statistik Austria)
+#data/raw/
+#data/processed/
+
+# OS garbage
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
