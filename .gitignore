@@ -34,3 +34,4 @@ Thumbs.db
 
 postgres_data/
 .postgres_data/
+test_connection.py
