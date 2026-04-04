@@ -29,3 +29,8 @@ Thumbs.db
 
 # VS Code settings
 .vscode/
+
+#docker database
+
+postgres_data/
+.postgres_data/
