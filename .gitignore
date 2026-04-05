@@ -20,8 +20,8 @@ __pycache__/
 *.env
 
 # Data files (too large for git, source is Statistik Austria)
-#data/raw/
-#data/processed/
+data/raw/
+data/processed/
 
 # OS garbage
 .DS_Store
@@ -35,3 +35,14 @@ Thumbs.db
 postgres_data/
 .postgres_data/
 test_connection.py
+
+
+# Dagster temporary files
+$DAGSTER_HOME/
+.dagster/
+dagster_home/
+tmpdag*/
+tmp*/
+*.tmp
+.tmp_dagster_home_zv8e634a
+
