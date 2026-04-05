@@ -1,11 +1,18 @@
 import pandas as pd
 from sqlalchemy import create_engine
 import logging
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = "postgresql://abdallah:password@localhost:5432/labour_db"
+DATABASE_URL = (
+    f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
+    f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+)
 engine = create_engine(DATABASE_URL)
 
 # ============================================================
@@ -219,7 +226,43 @@ def build_master_table() -> None:
     logger.info(f"\n{df.head(10).to_string()}")
 
 
+def build_recovery_table() -> None:
+    logger.info("Building recovery scores table...")
+    
+    df = pd.read_sql("SELECT * FROM transformed_labour", engine)
+    df['year'] = df['year'].astype(int)
+    
+    pre_shock = df[df['year'] == 2019][['region', 'total_employed']].rename(
+        columns={'total_employed': 'employed_2019'}
+    )
+    shock = df[df['year'] == 2020][['region', 'total_employed']].rename(
+        columns={'total_employed': 'employed_2020'}
+    )
+    recovery = df[df['year'] == 2023][['region', 'total_employed']].rename(
+        columns={'total_employed': 'employed_2023'}
+    )
+    dependency_2019 = df[df['year'] == 2019][['region', 'old_age_dependency_ratio',
+                                               'manufacturing_share', 'healthcare_share']]
+
+    recovery_df = pre_shock.merge(shock, on='region').merge(recovery, on='region')
+    recovery_df = recovery_df.merge(dependency_2019, on='region')
+    
+    recovery_df['shock_magnitude'] = (
+        (recovery_df['employed_2020'] - recovery_df['employed_2019'])
+        / recovery_df['employed_2019'] * 100
+    ).round(2)
+    
+    recovery_df['recovery_score'] = (
+        (recovery_df['employed_2023'] - recovery_df['employed_2020'])
+        / recovery_df['employed_2019'] * 100
+    ).round(2)
+
+    recovery_df.to_sql('recovery_scores', engine, if_exists='replace', index=False)
+    logger.info(f"Recovery scores table written: {recovery_df.shape}")
+    logger.info(f"\n{recovery_df.to_string()}")
+
 if __name__ == "__main__":
     logger.info("Starting transformation pipeline...")
     build_master_table()
+    build_recovery_table()
     logger.info("Transformation complete.")
