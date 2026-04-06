@@ -14,9 +14,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: abdallah
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: labour_db
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
         ports:
           - 5432:5432
         options: >-
@@ -46,5 +46,17 @@ jobs:
           echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
           echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
 
-      - name: Run tests
-        run: uv run pytest tests/ -v
+      - name: Run CI ingestion (sample data)
+        run: uv run python ingestion/ingest_labour_ci.py
+
+      - name: Run transformation pipeline
+        run: uv run python transformation/transform_labour.py
+
+      - name: Run forecasting pipeline
+        run: uv run python models/forecast_employment.py
+
+      - name: Run unit tests
+        run: uv run pytest tests/test_transformations.py -v
+
+      - name: Run data quality tests
+        run: uv run pytest tests/test_data_quality.py -v
