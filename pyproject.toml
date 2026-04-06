@@ -20,3 +20,6 @@ dependencies = [
 
 [tool.dagster]
 module_name = "dagster_pipeline.definitions"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
