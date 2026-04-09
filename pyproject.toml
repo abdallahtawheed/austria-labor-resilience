@@ -1,14 +1,16 @@
 [project]
 name = "austria-labor-resilience"
 version = "0.1.0"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "dagster>=1.12.22",
     "dagster-webserver>=1.12.22",
+    "dbt-postgres>=1.10.0",
     "fastapi>=0.135.3",
     "great-expectations>=1.15.2",
     "ipykernel>=7.2.0",
     "jupyter>=1.1.1",
+    "mashumaro==3.13.0",
     "matplotlib>=3.10.8",
     "pandas>=3.0.2",
     "plotly>=6.6.0",

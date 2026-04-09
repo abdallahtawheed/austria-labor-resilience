@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: labour
+    database: postgres
+    schema: public
+    tables:
+      - name: raw_total_employment
+      - name: raw_sector_employment
+      - name: raw_age_demographics

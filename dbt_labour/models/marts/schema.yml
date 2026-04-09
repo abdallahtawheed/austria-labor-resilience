@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: transformed_labour
+    description: "Joined analytical layer combining employment, sector, and demographic data for all nine Austrian Bundesländer from 2013 to 2025."
+    columns:
+      - name: year
+        description: "Survey year."
+        tests:
+          - not_null
+      - name: region
+        description: "Austrian Bundesland (NUTS 2)."
+        tests:
+          - not_null
+      - name: total_employed
+        description: "Total employed persons in thousands."
+        tests:
+          - not_null
+      - name: manufacturing_share
+        description: "Manufacturing employment as % of total."
+      - name: healthcare_share
+        description: "Healthcare employment as % of total."
+      - name: old_age_dependency_ratio
+        description: "Population over 65 as % of working age population."
+
+  - name: recovery_scores
+    description: "One row per region. Post-COVID recovery score defined as (employed_2023 - employed_2019) / employed_2019 * 100."
+    columns:
+      - name: region
+        description: "Austrian Bundesland."
+        tests:
+          - not_null
+          - unique
+      - name: recovery_score
+        description: "Percentage employment change from 2019 to 2023."
+        tests:
+          - not_null
+      - name: shock_magnitude
+        description: "Percentage employment change from 2019 to 2020 (COVID shock)."
+        tests:
+          - not_null

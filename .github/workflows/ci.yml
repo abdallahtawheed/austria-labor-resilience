@@ -34,8 +34,32 @@ jobs:
       - name: Run CI ingestion (sample data)
         run: uv run python ingestion/ingest_labour_ci.py
 
-      - name: Run transformation pipeline
-        run: uv run python transformation/transform_labour.py
+      - name: Create dbt profiles
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          dbt_labour:
+            target: dev
+            outputs:
+              dev:
+                type: postgres
+                host: ${{ secrets.DB_HOST }}
+                port: 5432
+                user: ${{ secrets.DB_USER }}
+                pass: ${{ secrets.DB_PASSWORD }}
+                dbname: ${{ secrets.DB_NAME }}
+                schema: public
+                threads: 4
+          EOF
+      
+      - name: Install dbt
+        run: pip install dbt-postgres==1.10.0
+
+      - name: Run dbt models
+        run: dbt run --project-dir dbt_labour --profiles-dir dbt_labour
+
+      - name: Run dbt tests
+        run: dbt test --project-dir dbt_labour --profiles-dir dbt_labour
 
       - name: Run forecasting pipeline
         run: uv run python models/forecast_employment.py
