@@ -44,7 +44,7 @@ Dagster (monthly orchestration) + GitHub Actions (CI/CD)
 ```
 
 ![Architecture](docs/architecture.png)
-![Lineage Graph](docs/lineage_graph.png)
+![Lineage Graph](docs/dbt_lineage_graph.png)
 
 ---
 
