@@ -1,198 +1,299 @@
 # Austrian Labor Market Resilience Analysis
 
-## Research Question
-Do Austrian regions with older average populations recover more slowly from 
-labor market shocks — and does sector composition (healthcare-heavy vs 
-manufacturing-heavy) change that recovery pattern?
+> Do Austrian regions with older average populations recover more slowly from labor market shocks — and does sector composition change that recovery pattern?
+
+**Live API:** `http://13.60.6.29:8000`  
+**Swagger UI:** `http://13.60.6.29:8000/docs`
+
+---
 
 ## Key Findings
 
-**Finding 1: Demographic aging correlates with slower recovery.**  
-Regions with higher old age dependency ratios in 2019 showed systematically 
-weaker employment recovery by 2023. The relationship is consistent across 
-most Austrian Bundesländer.
+- Demographic aging correlates with slower post-COVID employment recovery across Austrian regions
+- Vienna is a structural outlier — youngest demographics, lowest manufacturing exposure, strongest recovery at **+7.74%**
+- Once Vienna is excluded, sector composition explains nothing — the manufacturing/healthcare gap collapses from 1.38 to -0.03 percentage points
+- Carinthia took the hardest COVID shock at **-3.47%**
+- The 2021 ILO questionnaire change creates a structural break — pre and post-2021 figures are not directly comparable
 
-**Finding 2: Vienna is a structural outlier.**  
-Vienna combines the youngest demographic profile, lowest manufacturing 
-exposure, and strongest post-COVID recovery (7.74%) of all nine regions. 
-Excluding Vienna, the average recovery gap between service-oriented and 
-manufacturing-heavy regions collapses from 1.38 to -0.03 percentage points — 
-effectively zero.
+---
 
-**Finding 3: Sector composition alone does not predict recovery.**  
-Once Vienna is excluded, manufacturing-heavy regions (Vorarlberg, Upper 
-Austria, Styria: avg 3.54%) and service-oriented regions (Salzburg, 
-Burgenland: avg 3.51%) show virtually identical recovery scores. Demographics 
-remain the more consistent explanatory variable across the remaining 
-eight regions.
+## Architecture
 
-**Finding 4: Carinthia took the hardest COVID shock.**  
-At -3.47% employment drop in 2020, Carinthia was the most exposed region — 
-consistent with its above-average manufacturing share and older demographic 
-profile.
+```
+Statistik Austria (STATcube)
+        │
+        ▼
+Python + SQLAlchemy (ingestion)
+        │
+        ▼
+AWS RDS PostgreSQL 15 (raw layer)
+        │
+        ▼
+dbt (staging → intermediate → marts)
+        │
+        ├──▶ transformed_labour (117 rows, 11 cols)
+        └──▶ recovery_scores (9 rows, 8 cols)
+                │
+                ├──▶ Prophet forecasting → model_output (2026–2028)
+                │
+                ├──▶ FastAPI on AWS EC2 (REST endpoints)
+                │
+                └──▶ Power BI Dashboard (4 analytical views)
 
-## Pipeline Architecture
+Dagster (monthly orchestration) + GitHub Actions (CI/CD)
+```
 
-![Architecture Diagram](docs/architecture.png)
+![Architecture](docs/architecture.png)
+![Lineage Graph](docs/lineage_graph.png)
 
-Statistik Austria CSVs
-↓
-Ingestion (Python/SQLAlchemy) → PostgreSQL raw layer
-↓
-Transformation (Python/pandas) → PostgreSQL analytical layer
-↓
-Forecasting (Prophet) → PostgreSQL model layer
-↓
-Dashboard (Power BI)
-Orchestration: Dagster (monthly schedule)
-CI/CD: GitHub Actions (runs on every push to main)
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Orchestration | Dagster |
-| Storage | PostgreSQL (Docker) |
-| Ingestion | Python, SQLAlchemy |
-| Transformation | Python, pandas |
-| Modeling | Prophet |
-| Visualization | Power BI |
-| Testing | pytest (19 tests) |
+| Language | Python 3.12 |
+| Package manager | uv |
+| Database | PostgreSQL 15 on AWS RDS |
+| Ingestion | pandas, SQLAlchemy, psycopg2-binary |
+| Transformation | dbt-postgres 1.10 |
+| Forecasting | Prophet |
+| API | FastAPI + uvicorn on AWS EC2 |
+| Orchestration | Dagster (monthly schedule) |
+| Dashboard | Power BI Desktop |
+| Testing | pytest (19 tests) + dbt schema tests (7 tests) |
 | CI/CD | GitHub Actions |
-| Environment | uv, Docker Compose |
 
-## Project Structure
+---
 
-austria-labor-resilience/
-├── ingestion/              # Extract + Load scripts
-│   ├── ingest_labour.py    # Full dataset ingestion
-│   └── ingest_labour_ci.py # Sample data for CI
-├── transformation/         # Transform scripts
-│   └── transform_labour.py # Cleaning, joining, feature engineering
-├── models/                 # Forecasting
-│   └── forecast_employment.py # Prophet model, 2026-2028
-├── analysis/               # EDA notebooks
-│   └── eda.ipynb           # Full exploratory analysis
-├── dagster_pipeline/       # Orchestration
-│   ├── assets.py           # Pipeline asset definitions
-│   └── definitions.py      # Jobs and schedules
-├── tests/                  # Test suite
-│   ├── test_transformations.py  # Unit tests (7)
-│   └── test_data_quality.py     # Data quality tests (12)
-├── dashboard/              # Power BI file
-├── data/
-│   ├── raw/                # Source CSVs (gitignored)
-│   └── samples/            # Sample data for CI (committed)
-├── docs/                   # Architecture diagram and charts
-├── docker-compose.yml      # Local PostgreSQL instance
-└── .github/workflows/      # CI/CD pipeline
+## API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Project metadata |
+| GET | `/regions` | All nine Bundesländer with recovery scores |
+| GET | `/regions/{region}/forecast` | Prophet forecast 2026–2028 for a region |
+| GET | `/regions/{region}/recovery` | Full demographic and recovery breakdown |
+
+Example:
+```
+GET http://13.60.6.29:8000/regions/Vienna/forecast
+```
+
+Full interactive documentation at **`http://13.60.6.29:8000/docs`**.
+
+---
 
 ## Data Sources
 
-- **Statistik Austria / STATcube**: Regional labour force survey data 2013–2025
-  - Sector employment by region (Manufacturing, Healthcare)
-  - Total employment by region
-  - Population by age group by region
-- Survey methodology: Austrian Micro Census, ~1,500 households/week
-- Geographic level: NUTS 2 (9 Austrian Bundesländer)
+All data from [Statistik Austria STATcube](https://statcube.at/statistik.at/ext/statcube/jsf/dataCatalogueExplorer.xhtml), CSV format, latin1 encoding.
 
-## How To Run Locally
+| File | Content | Rows |
+|---|---|---|
+| `raw_sector_employment` | Employment by sector (Manufacturing, Healthcare) by region by year | 234 |
+| `raw_total_employment` | Total employment by region by year | 117 |
+| `raw_age_demographics` | Population by age band by region by year | 819 |
+
+Coverage: 9 Austrian Bundesländer (NUTS 2), 2013–2025.
+
+---
+
+## dbt Transformation Layer
+
+```
+models/
+├── staging/
+│   ├── stg_total_employment.sql       # Cleans raw employment table
+│   ├── stg_sector_employment.sql      # Pivots manufacturing/healthcare by region
+│   └── stg_age_demographics.sql       # Bucketes age bands into under_15/working_age/over_65
+├── intermediate/
+│   └── int_labour_joined.sql          # Joins all three staging models, computes shares and ratios
+└── marts/
+    ├── transformed_labour.sql         # Final analytical table (materialized)
+    └── recovery_scores.sql            # One row per region with shock and recovery metrics (materialized)
+```
+
+Staging and intermediate models materialize as views. Mart models materialize as tables.
+
+Run the full pipeline:
+```bash
+dbt run
+dbt test
+```
+
+---
+
+## Database Schema
+
+**Raw layer** (ingested from STATcube CSVs):
+- `raw_sector_employment` — 234 rows, 8 cols
+- `raw_age_demographics` — 819 rows, 7 cols
+- `raw_total_employment` — 117 rows, 7 cols
+
+**Analytical layer** (built by dbt):
+- `transformed_labour` — 117 rows, 11 cols: `year, region, total_employed, manufacturing_employed, healthcare_employed, manufacturing_share, healthcare_share, pop_under_15, pop_working_age, pop_over_65, old_age_dependency_ratio`
+- `recovery_scores` — 9 rows, 8 cols: `region, employed_2019, employed_2020, employed_2023, old_age_dependency_ratio, manufacturing_share, healthcare_share, shock_magnitude, recovery_score`
+
+**Model layer**:
+- `model_output` — 117 rows, 6 cols: `year, region, yhat, yhat_lower, yhat_upper, is_forecast`
+
+---
+
+## Local Setup
 
 ### Prerequisites
-- Docker Desktop installed and running
-- Python 3.12+
-- uv installed (`pip install uv`)
-- Power BI Desktop (for dashboard)
+- Python 3.12
+- uv
+- Access to AWS RDS instance (credentials required)
+- dbt-postgres
 
-### Steps
+### Install
 
-**1. Clone the repository**
 ```bash
 git clone https://github.com/abdallahtawheed/austria-labor-resilience.git
 cd austria-labor-resilience
-```
-
-**2. Configure environment**
-```bash
-cp .env.example .env
-# Edit .env with your database credentials
-```
-
-**3. Start PostgreSQL**
-```bash
-docker-compose up -d
-```
-
-**4. Install dependencies**
-```bash
+uv venv --python 3.12
 uv sync
 ```
 
-**5. Download source data**
+### Configure environment
 
-Download the following tables from [STATcube](https://statcube.at/statistik.at/ext/statcube/jsf/dataCatalogueExplorer.xhtml) as 
-CSV database format and place in `data/raw/`:
-- Labour Force Survey: sector employment by region by year (Manufacturing + Healthcare)
-- Labour Force Survey: total employment by region by year
-- Labour Force Survey: population by age group by region by year
+Copy `.env.example` to `.env` and fill in your RDS credentials:
 
-See `docs/statcube_download_guide.md` for exact table configurations.
-
-**6. Run the pipeline**
 ```bash
-# Option A: Run via Dagster UI
+cp .env.example .env
+```
+
+```env
+DB_USER=postgres
+DB_PASSWORD=your_password
+DB_HOST=your-rds-endpoint.rds.amazonaws.com
+DB_PORT=5432
+DB_NAME=postgres
+```
+
+### Configure dbt
+
+```bash
+dbt init dbt_labour
+```
+
+Follow the prompts using the same RDS credentials.
+
+### Run the pipeline
+
+```bash
+# Ingest raw data
+python ingestion/ingest_labour.py
+
+# Run dbt transformations and tests
+cd dbt_labour
+dbt run
+dbt test
+
+# Run Prophet forecasting
+cd ..
+python models/forecast_employment.py
+```
+
+### Run tests
+
+```bash
+pytest tests/ -v
+```
+
+---
+
+## Orchestration
+
+Dagster orchestrates the full pipeline on a monthly schedule (`0 6 1 * *`):
+
+```
+raw_data → dbt_models (run + test) → forecast_data
+```
+
+Launch the Dagster UI:
+
+```bash
 dagster dev
-# Open http://localhost:3000 → Materialize all
-
-# Option B: Run scripts directly
-uv run python ingestion/ingest_labour.py
-uv run python transformation/transform_labour.py
-uv run python models/forecast_employment.py
 ```
 
-**7. Run tests**
-```bash
-uv run pytest tests/ -v
-```
+---
 
-**8. Open dashboard**
+## CI/CD
 
-Open `dashboard/austria_labour_resilience.pbix` in Power BI Desktop.
-Connect to your local PostgreSQL instance when prompted.
+GitHub Actions runs on every push and PR to `main`:
 
-## Limitations and Further Research
+1. Spins up the environment with Python 3.12 and uv
+2. Writes dbt `profiles.yml` from GitHub Secrets
+3. Runs dbt models and schema tests against live AWS RDS
+4. Runs 19 pytest tests (unit + data quality)
 
-**Methodology break (2021):** Statistik Austria introduced a new ILO 
-questionnaire in 2021, creating a structural break in the time series. 
-Pre and post-2021 figures are not directly comparable. This limits the 
-precision of COVID recovery analysis and is treated as a known limitation 
-throughout.
-
-**Migration and healthcare employment:** Austria's healthcare sector 
-relies heavily on foreign-born workers, particularly for the 24-hour 
-home care system (Personenbetreuung). Healthcare employment in older 
-regions may be sustained by migration flows rather than domestic labor 
-market dynamics — a distinction this dataset cannot resolve. Regional 
-migration statistics would be required for a fuller analysis.
-
-**Sample size:** Nine regions is a small sample for statistical inference. 
-Trend lines and correlations should be interpreted as descriptive rather 
-than inferential. Results are suggestive, not conclusive.
-
-**Further research directions:**
-- Incorporate regional migration statistics to isolate the healthcare 
-  migration effect
-- Extend to municipality level (NUTS 3) for finer geographic resolution
-- Add wage data to distinguish employment quantity from employment quality
-- Compare Austrian patterns against other EU member states with similar 
-  aging profiles (Germany, Italy, Portugal)
-
-## CI/CD Status
+All secrets stored as GitHub repository secrets: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_PORT`, `DB_NAME`.
 
 ![CI Pipeline](https://github.com/abdallahtawheed/austria-labor-resilience/actions/workflows/ci.yml/badge.svg)
+
+---
+
+## Known Limitations
+
+- **2021 methodology break** — ILO questionnaire change makes pre/post 2021 figures not directly comparable
+- **Only 9 regions** — too small for statistical inference; findings are descriptive only
+- **Migration data missing** — healthcare employment likely sustained by foreign workers, not captured in this dataset
+
+---
+
+## Project Structure
+
+```
+austria-labor-resilience/
+├── ingestion/
+│   ├── ingest_labour.py
+│   └── ingest_labour_ci.py
+├── transformation/
+│   └── transform_labour.py
+├── models/
+│   └── forecast_employment.py
+├── analysis/
+│   └── eda.ipynb
+├── dbt_labour/
+│   ├── models/
+│   │   ├── staging/
+│   │   ├── intermediate/
+│   │   └── marts/
+│   ├── dbt_project.yml
+│   └── ...
+├── api/
+│   ├── main.py
+│   └── requirements.txt
+├── dagster_pipeline/
+│   ├── assets.py
+│   └── definitions.py
+├── tests/
+│   ├── test_transformations.py
+│   └── test_data_quality.py
+├── dashboard/
+│   └── austria_labour_resilience.pbix
+├── docs/
+│   ├── architecture.png
+│   ├── lineage_graph.png
+│   └── ...
+├── data/
+│   ├── raw/                  # gitignored
+│   └── samples/
+├── .github/workflows/ci.yml
+├── docker-compose.yml        # retained for local dev reference
+├── pyproject.toml
+└── .env.example
+```
+
+
+---
 
 ## Author
 
 Abdallah Abdelmagid — MSc Data Science & AI, FH Joanneum Graz  
 [LinkedIn](https://www.linkedin.com/in/abdallah-abdelmagid-8b5549175/) | 
 [GitHub](https://github.com/abdallahtawheed)
+
+---

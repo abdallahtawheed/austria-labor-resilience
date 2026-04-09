@@ -12,11 +12,11 @@ def raw_data():
 @asset(deps=[raw_data])
 def dbt_models():
     subprocess.run(
-        ["dbt", "run", "--project-dir", "dbt_labour", "--profiles-dir", "dbt_labour"],
+        ["dbt", "run", "--project-dir", "dbt_labour"],
         check=True
     )
     subprocess.run(
-        ["dbt", "test", "--project-dir", "dbt_labour", "--profiles-dir", "dbt_labour"],
+        ["dbt", "test", "--project-dir", "dbt_labour"],
         check=True
     )
 
