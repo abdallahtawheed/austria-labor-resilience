@@ -7,8 +7,8 @@ cleaned as (
         "Year"::integer as year,
         trim(split_part("Province (NUTS 2-unit) <9>", '<', 1)) as region,
         case
-            when "Alter unter/über 15 Jahren" like '%unter 15%' then 'under_15'
-            when "Alter unter/über 15 Jahren" like '%65%' then 'over_65'
+            when "Alter unter/über 15 Jahren" = 'Under 15 years' then 'under_15'
+            when "Alter unter/über 15 Jahren" = '65 years and older' then 'over_65'
             else 'working_age'
         end as age_bucket,
         ("Number" * 1000)::integer as population
