@@ -1,5 +1,5 @@
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import logging
 from dotenv import load_dotenv
 import os
@@ -11,8 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 # DB conn
-
-# Credentials match docker-compose.yml exactly.
 DATABASE_URL = (
     f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
     f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
@@ -28,17 +26,9 @@ EMPLOYMENT_FILE = "data/raw/table_totalbyregionbyyear_2026-04-04_01-29-40.csv"
 # ============================================================
 # PARSING CONSTANTS
 # ============================================================
-# STATcube CSV exports have a 9-line metadata block before the actual header.
-# Structure:
-#   lines 0-1: database name and blank line
-#   lines 2-4: table description and counting unit
-#   lines 5-8: filter definitions and blank lines
-#   line 9: actual column headers
-# Encoding is latin1 because STATcube uses Windows-1252,
 SKIPROWS = 9
 ENCODING = 'latin1'
 
-# Valid years in our analysis window
 VALID_YEARS = [str(y) for y in range(2013, 2026)]
 
 
@@ -63,7 +53,11 @@ def drop_metadata_rows(df: pd.DataFrame, year_col: str = 'Year') -> pd.DataFrame
 
 
 def write_to_postgres(df: pd.DataFrame, table_name: str) -> None:
-    """Write dataframe to PostgreSQL, replacing table if it exists."""
+    """Write dataframe to PostgreSQL, replacing table if it exists.
+    Uses CASCADE drop to remove any dependent dbt views before recreating."""
+    with engine.connect() as conn:
+        conn.execute(text(f'DROP TABLE IF EXISTS {table_name} CASCADE'))
+        conn.commit()
     df.to_sql(
         table_name,
         engine,
