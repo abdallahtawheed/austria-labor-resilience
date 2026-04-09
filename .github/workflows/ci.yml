@@ -53,10 +53,10 @@ jobs:
         run: pip install dbt-postgres==1.10.0
 
       - name: Run dbt models
-        run: dbt run --project-dir dbt_labour --profiles-dir dbt_labour
+        run: dbt run --project-dir dbt_labour
 
       - name: Run dbt tests
-        run: dbt test --project-dir dbt_labour --profiles-dir dbt_labour
+        run: dbt test --project-dir dbt_labour
 
       - name: Run forecasting pipeline
         run: uv run python models/forecast_employment.py
